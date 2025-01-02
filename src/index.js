@@ -1,23 +1,13 @@
 require('dotenv').config();
 const express = require('express');
 const { Sequelize } = require('sequelize');
-const authRoutes = require('./src/routes/authRoutes');
-const blogRoutes = require('./src/routes/blogRoutes');
-const galleryRoutes = require('./src/routes/galleryRoutes');
+const authRoutes = require('./routes/authRoutes');
+const blogRoutes = require('./routes/blogRoutes');
+const galleryRoutes = require('./routes/galleryRoutes');
+const sequelize = require('./config/database');
 
 const app = express();
 const PORT = process.env.PORT || 3003;
-
-// Database connection
-const sequelize = new Sequelize(
-    process.env.DB_NAME,
-    process.env.DB_USER,
-    process.env.DB_PASSWORD, 
-    {
-        host: process.env.DB_HOST,
-        dialect: 'postgres'
-    }
-);
 
 // Test the connection
 (async () => {
@@ -40,4 +30,4 @@ app.use('/gallery', galleryRoutes);
 
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
-});
+}); 
