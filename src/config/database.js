@@ -31,28 +31,29 @@ if (missingVars.length > 0) {
   );
 }
 
-const sequelize = new Sequelize({
-  dialect: "postgres",
-  host: process.env.PGHOST,
-  port: parseInt(process.env.PGPORT, 10),
-  database: process.env.PGDATABASE,
-  username: process.env.PGUSER,
-  password: String(process.env.PGPASSWORD),
-  logging: process.env.NODE_ENV === "development" ? console.log : false,
-  // Add these options for connection stability
-  pool: {
-    max: 5,
-    min: 0,
-    acquire: 30000,
-    idle: 10000,
-  },
-  dialectOptions: {
-    connectTimeout: 60000, // 60 seconds
-    ssl:
-      process.env.NODE_ENV === "production"
-        ? { rejectUnauthorized: false }
-        : false,
-  },
-});
+const sequelize = new Sequelize(
+  process.env.PGDATABASE,
+  process.env.PGUSER,
+  process.env.PGPASSWORD,
+  {
+    host: process.env.PGHOST,
+    port: parseInt(process.env.PGPORT, 10),
+    dialect: "postgres",
+    logging: process.env.NODE_ENV === "development" ? console.log : false,
+    pool: {
+      max: 5,
+      min: 0,
+      acquire: 30000,
+      idle: 10000,
+    },
+    dialectOptions: {
+      connectTimeout: 60000, // 60 seconds
+      ssl:
+        process.env.NODE_ENV === "production"
+          ? { rejectUnauthorized: false }
+          : false,
+    },
+  }
+);
 
 module.exports = sequelize;
