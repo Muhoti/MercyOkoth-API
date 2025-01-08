@@ -1,8 +1,58 @@
-const { Sequelize } = require('sequelize');
+require("dotenv").config({
+  path: require("path").resolve(__dirname, "../../../.env"),
+});
+const { Sequelize } = require("sequelize");
 
-const connectionString = `postgres://${process.env.PGUSER}:${process.env.PGPASSWORD}@${process.env.PGHOST}:${process.env.PGPORT}/${process.env.PGDATABASE}`;
-console.log('Connection string:', connectionString);
+// Debug: Print connection details (without password)
+console.log("Attempting to connect to database with:", {
+  host: process.env.PGHOST,
+  port: process.env.PGPORT,
+  database: process.env.PGDATABASE,
+  user: process.env.PGUSER,
+});
 
-const sequelize = new Sequelize(connectionString);
+// Validate required environment variables
+const requiredEnvVars = {
+  PGHOST: process.env.PGHOST,
+  PGPORT: process.env.PGPORT,
+  PGDATABASE: process.env.PGDATABASE,
+  PGUSER: process.env.PGUSER,
+  PGPASSWORD: process.env.PGPASSWORD,
+};
+
+// Check for missing environment variables
+const missingVars = Object.entries(requiredEnvVars)
+  .filter(([key, value]) => !value)
+  .map(([key]) => key);
+
+if (missingVars.length > 0) {
+  throw new Error(
+    `Missing required environment variables: ${missingVars.join(", ")}`
+  );
+}
+
+const sequelize = new Sequelize({
+  dialect: "postgres",
+  host: process.env.PGHOST,
+  port: parseInt(process.env.PGPORT, 10),
+  database: process.env.PGDATABASE,
+  username: process.env.PGUSER,
+  password: String(process.env.PGPASSWORD),
+  logging: process.env.NODE_ENV === "development" ? console.log : false,
+  // Add these options for connection stability
+  pool: {
+    max: 5,
+    min: 0,
+    acquire: 30000,
+    idle: 10000,
+  },
+  dialectOptions: {
+    connectTimeout: 60000, // 60 seconds
+    ssl:
+      process.env.NODE_ENV === "production"
+        ? { rejectUnauthorized: false }
+        : false,
+  },
+});
 
 module.exports = sequelize;
