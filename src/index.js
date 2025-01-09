@@ -9,15 +9,19 @@ const sequelize = require('./config/database');
 const app = express();
 const PORT = process.env.PORT || 3003;
 
-// Test the connection
+// Test database connection and sync models
 (async () => {
-    try {
-        await sequelize.authenticate();
-        console.log('Connected to PostgreSQL database');
-        await sequelize.sync(); // This creates the tables if they don't exist
-    } catch (error) {
-        console.error('Unable to connect to the database:', error);
-    }
+  try {
+    await sequelize.authenticate();
+    console.log("Connected to PostgreSQL database");
+    
+    // Sync models with database
+    await sequelize.sync({ alter: true });
+    console.log("Database models synchronized");
+  } catch (error) {
+    console.error("Database connection error:", error);
+    process.exit(1);
+  }
 })();
 
 // Middleware
