@@ -1,90 +1,78 @@
-const Resource = require("../models/resourceModel");
-const multer = require("multer");
+const Resource = require("../models/Resource");
+const { uploadToS3, deleteFromS3 } = require("../utils/s3");
 const path = require("path");
 
-// Configure multer for file uploads
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, "uploads/resources/");
-  },
-  filename: (req, file, cb) => {
-    cb(null, Date.now() + path.extname(file.originalname));
-  },
-});
-
-const upload = multer({ storage });
-
-exports.createResource = [
-  upload.fields([
-    { name: "file", maxCount: 1 },
-    { name: "thumbnail", maxCount: 1 },
-  ]),
-  async (req, res) => {
-    try {
-      const { title, description, type, content } = req.body;
-
-      const resourceData = {
-        title,
-        description,
-        type,
-        content,
-        fileUrl: req.files.file ? req.files.file[0].path : null,
-        thumbnail: req.files.thumbnail ? req.files.thumbnail[0].path : null,
-      };
-
-      const resource = await Resource.create(resourceData);
-      res.status(201).json(resource);
-    } catch (error) {
-      res.status(400).json({ message: error.message });
-    }
-  },
-];
-
-exports.getAllResources = async (req, res) => {
+exports.createResource = async (req, res) => {
   try {
-    const resources = await Resource.findAll();
-    res.json(resources);
+    const { type } = req.body;
+    let resourceData = {
+      ...req.body,
+      createdBy: req.user.id,
+    };
+
+    // Handle PDF upload for ebooks
+    if (type === "ebooks" && req.files && req.files.pdf) {
+      const file = req.files.pdf;
+      const fileName = `ebooks/${Date.now()}-${file.name}`;
+      const fileUrl = await uploadToS3(file, fileName);
+      resourceData.fileUrl = fileUrl;
+    }
+
+    const resource = await Resource.create(resourceData);
+    res.status(201).json(resource);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error("Create resource error:", error);
+    res.status(500).json({ message: "Failed to create resource" });
   }
 };
 
-exports.updateResource = [
-  upload.fields([
-    { name: "file", maxCount: 1 },
-    { name: "thumbnail", maxCount: 1 },
-  ]),
-  async (req, res) => {
-    try {
-      const { id } = req.params;
-      const { title, description, type, content } = req.body;
+exports.getResources = async (req, res) => {
+  try {
+    const { type } = req.query;
+    const resources = await Resource.findAll({
+      where: type ? { type } : {},
+      order: [["createdAt", "DESC"]],
+    });
+    res.json(resources);
+  } catch (error) {
+    console.error("Get resources error:", error);
+    res.status(500).json({ message: "Failed to fetch resources" });
+  }
+};
 
-      const resourceData = {
-        title,
-        description,
-        type,
-        content,
-      };
+exports.updateResource = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const resource = await Resource.findByPk(id);
 
-      if (req.files.file) {
-        resourceData.fileUrl = req.files.file[0].path;
-      }
-      if (req.files.thumbnail) {
-        resourceData.thumbnail = req.files.thumbnail[0].path;
-      }
-
-      const resource = await Resource.findByPk(id);
-      if (!resource) {
-        return res.status(404).json({ message: "Resource not found" });
-      }
-
-      await resource.update(resourceData);
-      res.json(resource);
-    } catch (error) {
-      res.status(400).json({ message: error.message });
+    if (!resource) {
+      return res.status(404).json({ message: "Resource not found" });
     }
-  },
-];
+
+    if (resource.createdBy !== req.user.id) {
+      return res.status(403).json({ message: "Not authorized" });
+    }
+
+    // Handle PDF update for ebooks
+    if (req.files && req.files.pdf) {
+      // Delete old file if exists
+      if (resource.fileUrl) {
+        await deleteFromS3(resource.fileUrl);
+      }
+
+      const file = req.files.pdf;
+      const fileName = `ebooks/${Date.now()}-${file.name}`;
+      const fileUrl = await uploadToS3(file, fileName);
+      req.body.fileUrl = fileUrl;
+    }
+
+    await resource.update(req.body);
+    res.json(resource);
+  } catch (error) {
+    console.error("Update resource error:", error);
+    res.status(500).json({ message: "Failed to update resource" });
+  }
+};
 
 exports.deleteResource = async (req, res) => {
   try {
@@ -95,9 +83,19 @@ exports.deleteResource = async (req, res) => {
       return res.status(404).json({ message: "Resource not found" });
     }
 
+    if (resource.createdBy !== req.user.id) {
+      return res.status(403).json({ message: "Not authorized" });
+    }
+
+    // Delete PDF file if exists
+    if (resource.fileUrl) {
+      await deleteFromS3(resource.fileUrl);
+    }
+
     await resource.destroy();
     res.json({ message: "Resource deleted successfully" });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error("Delete resource error:", error);
+    res.status(500).json({ message: "Failed to delete resource" });
   }
 };

@@ -7,8 +7,17 @@ const {
   updateResource,
   deleteResource,
 } = require("../controllers/resourceController");
+const fileUpload = require("express-fileupload");
 
 const router = express.Router();
+
+// Middleware for handling file uploads
+router.use(
+  fileUpload({
+    limits: { fileSize: 50 * 1024 * 1024 }, // 50MB max file size
+    abortOnLimit: true,
+  })
+);
 
 // Public route to get all resources
 router.get("/", getAllResources);
