@@ -4,6 +4,8 @@ const cors = require("cors");
 const { Sequelize } = require("sequelize");
 const authRoutes = require("./routes/authRoutes");
 const sequelize = require("./config/database");
+const resourceRoutes = require("./routes/resourceRoutes");
+const path = require("path");
 
 const app = express();
 const PORT = process.env.PORT || 3003;
@@ -11,16 +13,21 @@ const PORT = process.env.PORT || 3003;
 // Middleware
 app.use(cors()); // Enable CORS for frontend requests
 app.use(express.json());
+app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
 
 // Test the connection and start server
 const startServer = async () => {
   try {
     await sequelize.authenticate();
     console.log("Connected to PostgreSQL database");
-    await sequelize.sync(); // This creates the tables if they don't exist
+
+    // Force sync all models - this will drop and recreate all tables
+    await sequelize.sync();
+    console.log("Database tables dropped and recreated");
 
     // Routes with /api prefix
     app.use("/api/auth", authRoutes);
+    app.use("/api", resourceRoutes);
 
     // Error handling middleware
     app.use((err, req, res, next) => {
