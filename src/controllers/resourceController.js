@@ -155,40 +155,53 @@ exports.updateResource = async (req, res) => {
         .json({ message: "Not authorized to update this resource" });
     }
 
+    let updateData = { ...req.body };
+
     // Handle file replacement for ebooks
     if (req.params.type === "ebooks" && req.file) {
-      // Delete the old file if it exists
-      if (resource.fileUrl) {
-        const oldFilePath = path.join(
-          __dirname,
-          "../../uploads",
-          resource.fileUrl
-        );
-        await fs
-          .remove(oldFilePath)
-          .catch((err) => console.error("Error deleting old file:", err));
+      try {
+        // Delete the old file if it exists
+        if (resource.fileUrl) {
+          const oldFilePath = path.join(
+            __dirname,
+            "../../uploads",
+            resource.fileUrl
+          );
+          await fs
+            .remove(oldFilePath)
+            .catch((err) => console.error("Error deleting old file:", err));
+        }
+
+        // Update with new file
+        updateData.fileUrl = req.file.filename;
+        console.log("New file uploaded:", req.file.filename);
+      } catch (error) {
+        console.error("Error handling file update:", error);
+        throw error;
       }
-      // Update with new file
-      req.body.fileUrl = req.file.filename;
     }
 
-    const updatedResource = await resource.update(req.body);
+    const updatedResource = await resource.update(updateData);
 
     // Add full URL for ebook files
     if (req.params.type === "ebooks") {
-      updatedResource.dataValues.fileUrl = `http://localhost:3003/uploads/${updatedResource.fileUrl}`;
+      const fileUrl = `http://localhost:3003/uploads/${updatedResource.fileUrl}`;
+      console.log("Updated file URL:", fileUrl);
+      updatedResource.dataValues.fileUrl = fileUrl;
     }
 
     console.log("Resource updated successfully:", {
       id: updatedResource.id,
       type: req.params.type,
+      fileUrl: updatedResource.fileUrl,
     });
 
     res.status(200).json(updatedResource);
   } catch (error) {
     // If there was an error and a new file was uploaded, delete it
     if (req.file) {
-      await fs.unlink(req.file.path).catch(console.error);
+      const filePath = path.join(__dirname, "../../uploads", req.file.filename);
+      await fs.remove(filePath).catch(console.error);
     }
 
     console.error("Error updating resource:", {
