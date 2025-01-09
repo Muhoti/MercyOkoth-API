@@ -13,6 +13,8 @@ const PORT = process.env.PORT || 3003;
 // Middleware
 app.use(cors()); // Enable CORS for frontend requests
 app.use(express.json());
+
+// Serve static files from uploads directory
 app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
 
 // Test the connection and start server
@@ -24,6 +26,12 @@ const startServer = async () => {
     // Force sync all models - this will drop and recreate all tables
     await sequelize.sync();
     console.log("Database tables dropped and recreated");
+
+    // Create uploads directory if it doesn't exist
+    const uploadsDir = path.join(__dirname, "../uploads");
+    if (!require("fs").existsSync(uploadsDir)) {
+      require("fs").mkdirSync(uploadsDir, { recursive: true });
+    }
 
     // Routes with /api prefix
     app.use("/api/auth", authRoutes);
@@ -40,6 +48,7 @@ const startServer = async () => {
 
     app.listen(PORT, () => {
       console.log(`Server is running on port ${PORT}`);
+      console.log(`Uploads directory: ${uploadsDir}`);
     });
   } catch (error) {
     console.error("Unable to connect to the database:", error);

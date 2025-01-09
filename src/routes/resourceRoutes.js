@@ -29,7 +29,19 @@ router.post("/ebooks", upload.single("pdfFile"), (req, res) => {
   resourceController.createResource(req, res);
 });
 
-router.put("/:type/:id", resourceController.updateResource);
+// Update the update route for ebooks to handle file uploads
+router.put("/ebooks/:id", upload.single("pdfFile"), (req, res) => {
+  req.params.type = "ebooks";
+  resourceController.updateResource(req, res);
+});
+
+// Keep the original update route for other types
+router.put("/:type/:id", (req, res) => {
+  if (req.params.type !== "ebooks") {
+    resourceController.updateResource(req, res);
+  }
+});
+
 router.delete("/:type/:id", resourceController.deleteResource);
 
 module.exports = router;
