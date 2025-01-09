@@ -1,5 +1,5 @@
 const Resource = require("../models/Resource");
-const { uploadToS3, deleteFromS3 } = require("../utils/s3");
+const { uploadFile, deleteFile } = require("../utils/fileUpload");
 const path = require("path");
 
 exports.createResource = async (req, res) => {
@@ -13,8 +13,22 @@ exports.createResource = async (req, res) => {
     // Handle PDF upload for ebooks
     if (type === "ebooks" && req.files && req.files.pdf) {
       const file = req.files.pdf;
-      const fileName = `ebooks/${Date.now()}-${file.name}`;
-      const fileUrl = await uploadToS3(file, fileName);
+
+      // Check file size (2MB = 2 * 1024 * 1024 bytes)
+      if (file.size > 2 * 1024 * 1024) {
+        return res.status(400).json({
+          message: "File size too large. Maximum size is 2MB",
+        });
+      }
+
+      // Check file type
+      if (file.mimetype !== "application/pdf") {
+        return res.status(400).json({
+          message: "Only PDF files are allowed",
+        });
+      }
+
+      const fileUrl = await uploadFile(file, "ebooks");
       resourceData.fileUrl = fileUrl;
     }
 
@@ -57,12 +71,11 @@ exports.updateResource = async (req, res) => {
     if (req.files && req.files.pdf) {
       // Delete old file if exists
       if (resource.fileUrl) {
-        await deleteFromS3(resource.fileUrl);
+        await deleteFile(resource.fileUrl);
       }
 
       const file = req.files.pdf;
-      const fileName = `ebooks/${Date.now()}-${file.name}`;
-      const fileUrl = await uploadToS3(file, fileName);
+      const fileUrl = await uploadFile(file, "ebooks");
       req.body.fileUrl = fileUrl;
     }
 
@@ -89,7 +102,7 @@ exports.deleteResource = async (req, res) => {
 
     // Delete PDF file if exists
     if (resource.fileUrl) {
-      await deleteFromS3(resource.fileUrl);
+      await deleteFile(resource.fileUrl);
     }
 
     await resource.destroy();

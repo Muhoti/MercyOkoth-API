@@ -14,7 +14,7 @@ const router = express.Router();
 // Middleware for handling file uploads
 router.use(
   fileUpload({
-    limits: { fileSize: 50 * 1024 * 1024 }, // 50MB max file size
+    limits: { fileSize: 2 * 1024 * 1024 }, // 2MB max file size
     abortOnLimit: true,
   })
 );

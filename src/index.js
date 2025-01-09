@@ -13,6 +13,7 @@ const PORT = process.env.PORT || 3003;
 // Middleware
 app.use(cors()); // Enable CORS for frontend requests
 app.use(express.json());
+app.use("/uploads", express.static("uploads")); // Serve uploaded files
 
 // Test the connection and start server
 const startServer = async () => {
